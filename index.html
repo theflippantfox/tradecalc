@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SwingDesk — NEXUS Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --void:#02060F;
+  --deep:#060D1A;
+  --panel:#0A1525;
+  --panel2:#0D1C30;
+  --border:rgba(0,229,255,.12);
+  --border-bright:rgba(0,229,255,.35);
+  --cyan:#00E5FF;
+  --cyan-dim:rgba(0,229,255,.6);
+  --amber:#FF9500;
+  --amber-dim:rgba(255,149,0,.6);
+  --green:#00FF88;
+  --green-dim:rgba(0,255,136,.6);
+  --red:#FF3B5C;
+  --red-dim:rgba(255,59,92,.6);
+  --text:#E0F4FF;
+  --text2:rgba(224,244,255,.55);
+  --text3:rgba(224,244,255,.28);
+  --glow-cyan:0 0 20px rgba(0,229,255,.25),0 0 60px rgba(0,229,255,.08);
+  --glow-amber:0 0 20px rgba(255,149,0,.25);
+  --fw:220px;
+}
+html{font-size:16px}
+body{background:var(--void);color:var(--text);font-family:'Barlow Condensed',sans-serif;min-height:100vh;overflow-x:hidden}
+
+/* DOT GRID BG */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:radial-gradient(rgba(0,229,255,.06) 1px,transparent 1px);
+  background-size:32px 32px;pointer-events:none;z-index:0;
+}
+/* SCANLINE */
+body::after{
+  content:'';position:fixed;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px);
+  pointer-events:none;z-index:0;
+}
+
+#app{display:flex;min-height:100vh;position:relative;z-index:1}
+
+/* ═══ SIDEBAR ═══════════════════════════════════════════════════════════ */
+.sidebar{
+  width:var(--fw);flex-shrink:0;background:var(--deep);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  position:fixed;top:0;left:0;height:100vh;z-index:200;
+  overflow-y:auto;overflow-x:hidden;
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+}
+.s-brand{
+  padding:24px 20px 18px;
+  border-bottom:1px solid var(--border);
+}
+.s-logo{
+  font-family:'JetBrains Mono',monospace;font-weight:700;font-size:1.25rem;
+  letter-spacing:3px;color:var(--cyan);text-shadow:var(--glow-cyan);
+  line-height:1;
+}
+.s-logo span{color:var(--amber);text-shadow:var(--glow-amber)}
+.s-sub{font-size:.6rem;color:var(--text3);letter-spacing:2.5px;margin-top:6px;text-transform:uppercase;font-family:'JetBrains Mono',monospace}
+.s-pills{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+.s-pill{
+  font-size:.55rem;letter-spacing:1.5px;padding:3px 8px;border-radius:2px;
+  font-family:'JetBrains Mono',monospace;font-weight:500;text-transform:uppercase;
+}
+.s-pill.c{background:rgba(0,229,255,.1);color:var(--cyan);border:1px solid rgba(0,229,255,.2)}
+.s-pill.a{background:rgba(255,149,0,.1);color:var(--amber);border:1px solid rgba(255,149,0,.2)}
+
+.s-nav{flex:1;padding:12px 8px;display:flex;flex-direction:column;gap:1px}
+.n-item{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:4px;
+  cursor:pointer;font-size:.8rem;font-weight:500;letter-spacing:.8px;text-transform:uppercase;
+  color:var(--text3);border:1px solid transparent;background:none;width:100%;text-align:left;
+  transition:all .18s;position:relative;overflow:hidden;
+}
+.n-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--cyan);transform:scaleY(0);transition:transform .2s;box-shadow:0 0 8px var(--cyan)}
+.n-item:hover{color:var(--text2);background:rgba(0,229,255,.04);border-color:var(--border)}
+.n-item.active{color:var(--cyan);background:rgba(0,229,255,.06);border-color:rgba(0,229,255,.2)}
+.n-item.active::before{transform:scaleY(1)}
+.n-icon{font-size:.95rem;width:18px;text-align:center;flex-shrink:0}
+
+.s-footer{
+  padding:16px 20px;
+  border-top:1px solid var(--border);
+  font-size:.58rem;color:var(--text3);letter-spacing:1px;line-height:1.8;
+  font-family:'JetBrains Mono',monospace;
+}
+
+/* ═══ MAIN ═══════════════════════════════════════════════════════════════ */
+.main{margin-left:var(--fw);flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{
+  background:rgba(6,13,26,.85);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+  padding:0 28px;height:52px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+}
+.t-left{display:flex;align-items:center;gap:14px}
+.t-crumb{
+  font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--text3);
+  letter-spacing:1.5px;text-transform:uppercase;
+}
+.t-crumb span{color:var(--cyan)}
+.t-title{font-size:1.05rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text)}
+.t-right{display:flex;align-items:center;gap:16px}
+.t-badge{
+  font-family:'JetBrains Mono',monospace;font-size:.6rem;letter-spacing:1px;
+  color:var(--text3);display:flex;align-items:center;gap:5px;
+}
+.t-badge .dot{width:5px;height:5px;border-radius:50%;animation:pulse 2s infinite}
+.dot-green{background:var(--green);box-shadow:0 0 6px var(--green)}
+.dot-amber{background:var(--amber)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.menu-btn{display:none;background:none;border:none;cursor:pointer;color:var(--cyan);font-size:1.2rem;padding:4px}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:199;backdrop-filter:blur(4px)}
+
+.content{padding:24px 28px;max-width:1140px}
+
+/* ═══ PAGE HEADER ════════════════════════════════════════════════════════ */
+.ph{display:flex;align-items:flex-start;gap:16px;margin-bottom:28px}
+.ph-icon{
+  width:48px;height:48px;border-radius:6px;
+  background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.4rem;flex-shrink:0;color:var(--cyan);
+  box-shadow:inset 0 0 20px rgba(0,229,255,.05);
+}
+.ph-title{font-size:1.7rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--text);line-height:1}
+.ph-sub{font-size:.8rem;color:var(--text3);margin-top:6px;font-weight:400;letter-spacing:.5px;line-height:1.5}
+
+/* ═══ CARDS ══════════════════════════════════════════════════════════════ */
+.card{
+  background:var(--panel);border:1px solid var(--border);border-radius:6px;
+  padding:20px 22px;margin-bottom:18px;position:relative;overflow:hidden;
+}
+.card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(0,229,255,.3),transparent);
+}
+.card.amber-top::before{background:linear-gradient(90deg,transparent,rgba(255,149,0,.4),transparent)}
+.card.green-top::before{background:linear-gradient(90deg,transparent,rgba(0,255,136,.3),transparent)}
+.card.red-top::before{background:linear-gradient(90deg,transparent,rgba(255,59,92,.3),transparent)}
+
+.card-label{
+  font-family:'JetBrains Mono',monospace;font-size:.58rem;
+  letter-spacing:2.5px;text-transform:uppercase;color:var(--text3);
+  margin-bottom:18px;display:flex;align-items:center;gap:8px;
+}
+.card-label::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ═══ GRID ════════════════════════════════════════════════════════════════ */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.mb{margin-bottom:18px}
+
+/* ═══ INPUTS ══════════════════════════════════════════════════════════════ */
+.field{display:flex;flex-direction:column;gap:7px}
+.field label{font-family:'JetBrains Mono',monospace;font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--text3)}
+.field input,.field select{
+  background:rgba(0,0,0,.4);border:1px solid rgba(0,229,255,.15);border-radius:4px;
+  color:var(--cyan);font-family:'JetBrains Mono',monospace;font-size:.9rem;font-weight:500;
+  padding:10px 12px;outline:none;width:100%;
+  transition:border-color .18s,box-shadow .18s;
+  -moz-appearance:textfield;
+}
+.field input::-webkit-inner-spin-button,.field input::-webkit-outer-spin-button{-webkit-appearance:none}
+.field input:focus,.field select:focus{
+  border-color:var(--cyan);
+  box-shadow:0 0 0 2px rgba(0,229,255,.1),inset 0 0 12px rgba(0,229,255,.04);
+}
+.field input::placeholder{color:var(--text3)}
+
+/* ═══ STAT CARDS ══════════════════════════════════════════════════════════ */
+.sc{
+  background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:5px;
+  padding:14px 16px;position:relative;overflow:hidden;
+  transition:border-color .2s,box-shadow .2s;
+}
+.sc:hover{border-color:rgba(0,229,255,.25);box-shadow:0 0 16px rgba(0,229,255,.04)}
+.sc::before{
+  content:'';position:absolute;top:0;right:0;width:30px;height:30px;
+  border-top:1px solid;border-right:1px solid;border-radius:0 5px 0 0;
+  opacity:.3;
+}
+.sc.cyan::before{border-color:var(--cyan)}
+.sc.amber::before{border-color:var(--amber)}
+.sc.green::before{border-color:var(--green)}
+.sc.red::before{border-color:var(--red)}
+.sc.grey::before{border-color:var(--text3)}
+
+.sc-label{font-family:'JetBrains Mono',monospace;font-size:.55rem;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+.sc-val{font-family:'JetBrains Mono',monospace;font-size:1.05rem;font-weight:600;line-height:1;transition:color .2s}
+.sc-val.cyan{color:var(--cyan);text-shadow:0 0 12px rgba(0,229,255,.4)}
+.sc-val.amber{color:var(--amber);text-shadow:0 0 10px rgba(255,149,0,.3)}
+.sc-val.green{color:var(--green);text-shadow:0 0 10px rgba(0,255,136,.3)}
+.sc-val.red{color:var(--red);text-shadow:0 0 10px rgba(255,59,92,.3)}
+.sc-val.grey{color:var(--text2)}
+
+/* ═══ BUTTONS ═════════════════════════════════════════════════════════════ */
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.btn{
+  padding:7px 16px;border-radius:3px;
+  font-family:'JetBrains Mono',monospace;font-size:.65rem;letter-spacing:1.5px;text-transform:uppercase;
+  cursor:pointer;border:1px solid var(--border);
+  background:transparent;color:var(--text3);transition:all .18s;
+}
+.btn:hover{border-color:rgba(0,229,255,.3);color:var(--text2)}
+.btn.on{background:rgba(0,229,255,.1);color:var(--cyan);border-color:rgba(0,229,255,.35);box-shadow:0 0 12px rgba(0,229,255,.1)}
+.btn.on-amber{background:rgba(255,149,0,.1);color:var(--amber);border-color:rgba(255,149,0,.4)}
+.btn.on-green{background:rgba(0,255,136,.1);color:var(--green);border-color:rgba(0,255,136,.35)}
+.btn.on-red{background:rgba(255,59,92,.1);color:var(--red);border-color:rgba(255,59,92,.35)}
+
+/* ═══ ALERTS ══════════════════════════════════════════════════════════════ */
+.alert{
+  padding:14px 18px;border-radius:4px;font-size:.82rem;line-height:1.7;
+  font-weight:400;border-left:2px solid;letter-spacing:.3px;
+}
+.alert-cyan{background:rgba(0,229,255,.05);border-color:var(--cyan);color:var(--cyan-dim)}
+.alert-amber{background:rgba(255,149,0,.06);border-color:var(--amber);color:var(--amber-dim)}
+.alert-green{background:rgba(0,255,136,.05);border-color:var(--green);color:var(--green-dim)}
+.alert-red{background:rgba(255,59,92,.06);border-color:var(--red);color:var(--red-dim)}
+
+/* ═══ CHART WRAPPER ═══════════════════════════════════════════════════════ */
+.chart-box{width:100%;position:relative}
+.chart-box div{border-radius:4px}
+
+/* ═══ R:R BAR ═════════════════════════════════════════════════════════════ */
+.rr-bar{display:flex;height:44px;border-radius:4px;overflow:hidden;gap:2px;margin:12px 0}
+.rr-risk{
+  background:linear-gradient(90deg,rgba(255,59,92,.4),rgba(255,59,92,.2));
+  border:1px solid rgba(255,59,92,.3);border-radius:3px 0 0 3px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'JetBrains Mono',monospace;font-size:.75rem;font-weight:600;
+  color:var(--red);min-width:50px;
+}
+.rr-reward{
+  background:linear-gradient(90deg,rgba(0,255,136,.15),rgba(0,255,136,.3));
+  border:1px solid rgba(0,255,136,.3);border-radius:0 3px 3px 0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'JetBrains Mono',monospace;font-size:.75rem;font-weight:600;
+  color:var(--green);min-width:50px;
+}
+.rr-ratio{
+  text-align:center;margin-top:6px;
+  font-family:'JetBrains Mono',monospace;font-size:1.2rem;font-weight:700;letter-spacing:2px;
+}
+
+/* ═══ TABLE ═══════════════════════════════════════════════════════════════ */
+.tbl{width:100%;border-collapse:collapse;font-size:.8rem}
+.tbl th{
+  padding:9px 14px;text-align:left;
+  font-family:'JetBrains Mono',monospace;font-size:.55rem;letter-spacing:2px;text-transform:uppercase;
+  color:var(--text3);border-bottom:1px solid var(--border);
+}
+.tbl td{padding:8px 14px;border-bottom:1px solid rgba(0,229,255,.04);font-family:'JetBrains Mono',monospace;transition:background .15s}
+.tbl tr:hover td{background:rgba(0,229,255,.03)}
+.tbl tr:last-child td{border-bottom:none}
+
+/* ═══ CHARGE ROWS ═════════════════════════════════════════════════════════ */
+.cr{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(0,229,255,.06);font-size:.82rem}
+.cr:last-child{border-bottom:none;padding-top:14px;margin-top:6px;border-top:1px solid var(--border)}
+.cr-label{color:var(--text2);font-weight:400;letter-spacing:.3px}
+.cr-val{font-family:'JetBrains Mono',monospace;font-weight:500;color:var(--text)}
+
+/* ═══ TIMELINE ════════════════════════════════════════════════════════════ */
+.tl{display:flex;flex-direction:column}
+.tl-item{display:flex;gap:14px;padding:16px 0;border-bottom:1px solid rgba(0,229,255,.07);align-items:flex-start}
+.tl-item:last-child{border-bottom:none}
+.tl-num{
+  width:32px;height:32px;border-radius:4px;flex-shrink:0;margin-top:2px;
+  background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.2);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'JetBrains Mono',monospace;font-size:.7rem;font-weight:700;color:var(--cyan);
+}
+.tl-body{flex:1}
+.tl-phase{font-family:'JetBrains Mono',monospace;font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--cyan);margin-bottom:4px}
+.tl-focus{font-size:.9rem;font-weight:600;color:var(--text);margin-bottom:4px;letter-spacing:.3px}
+.tl-action{font-size:.78rem;color:var(--text3);letter-spacing:.3px}
+.tl-cap{font-family:'JetBrains Mono',monospace;font-size:.82rem;color:var(--amber);white-space:nowrap;margin-top:4px;text-align:right;min-width:90px}
+
+/* ═══ RULES ═══════════════════════════════════════════════════════════════ */
+.rules{list-style:none;display:flex;flex-direction:column;gap:10px}
+.rules li{display:flex;gap:12px;font-size:.85rem;color:var(--text2);align-items:flex-start;letter-spacing:.3px}
+.rule-n{
+  font-family:'JetBrains Mono',monospace;font-size:.65rem;color:var(--cyan);
+  background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.2);
+  width:24px;height:24px;border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+
+/* ═══ SL METHODS ══════════════════════════════════════════════════════════ */
+.slm{display:flex;flex-direction:column;gap:8px}
+.slm-item{display:flex;gap:14px;padding:12px;background:rgba(0,0,0,.3);border-radius:4px;border:1px solid var(--border)}
+.slm-name{font-family:'JetBrains Mono',monospace;font-size:.65rem;font-weight:600;color:var(--cyan);min-width:110px;letter-spacing:1px;text-transform:uppercase}
+.slm-desc{font-size:.8rem;color:var(--text2);letter-spacing:.3px;line-height:1.6}
+
+/* ═══ TOGGLE ══════════════════════════════════════════════════════════════ */
+.tg-row{display:flex;background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:4px;padding:3px;gap:2px;width:fit-content;margin-bottom:16px}
+.tg-btn{
+  padding:6px 16px;border-radius:3px;font-family:'JetBrains Mono',monospace;font-size:.62rem;
+  letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;border:none;background:none;
+  color:var(--text3);transition:all .18s;
+}
+.tg-btn.on{background:rgba(0,229,255,.12);color:var(--cyan);box-shadow:0 0 10px rgba(0,229,255,.1)}
+
+/* ═══ FADE ENTER ══════════════════════════════════════════════════════════ */
+.fade-in{animation:fadeIn .25s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ═══ GLOW NUMBER ANIMATION ═══════════════════════════════════════════════ */
+@keyframes glowPulse{0%,100%{text-shadow:0 0 12px rgba(0,229,255,.4)}50%{text-shadow:0 0 24px rgba(0,229,255,.8)}}
+
+/* ═══ RESPONSIVE ══════════════════════════════════════════════════════════ */
+@media(max-width:960px){
+  :root{--fw:0px}
+  .sidebar{transform:translateX(-220px);width:220px}
+  .sidebar.open{transform:translateX(0)}
+  .overlay{display:block}
+  .main{margin-left:0}
+  .menu-btn{display:block}
+  .content{padding:18px 16px}
+  .g5{grid-template-columns:1fr 1fr 1fr}
+  .g4{grid-template-columns:1fr 1fr}
+}
+@media(max-width:600px){
+  .g3{grid-template-columns:1fr 1fr}
+  .g5{grid-template-columns:1fr 1fr}
+  .g4{grid-template-columns:1fr 1fr}
+  .g2{grid-template-columns:1fr}
+  .tl-item{flex-wrap:wrap}
+  .tl-cap{min-width:auto;text-align:left}
+  .t-right{display:none}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- OVERLAY -->
+  <div class="overlay" v-if="sidebarOpen" @click="sidebarOpen=false" style="display:block"></div>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" :class="{open:sidebarOpen}">
+    <div class="s-brand">
+      <div class="s-logo">SWING<span>DESK</span></div>
+      <div class="s-sub">NEXUS TERMINAL · v2.0</div>
+      <div class="s-pills">
+        <span class="s-pill c">NSE / BSE</span>
+        <span class="s-pill a">SWING</span>
+        <span class="s-pill c">INDIA</span>
+      </div>
+    </div>
+    <nav class="s-nav">
+      <button v-for="t in TABS" :key="t.id" class="n-item" :class="{active:tab===t.id}" @click="tab=t.id;sidebarOpen=false">
+        <span class="n-icon">{{t.icon}}</span>
+        {{t.label}}
+      </button>
+    </nav>
+    <div class="s-footer">
+      EDUCATIONAL USE ONLY<br>
+      NOT SEBI INVESTMENT ADVICE<br>
+      NSE/BSE INDIA MARKET DATA
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <header class="topbar">
+      <div class="t-left">
+        <button class="menu-btn" @click="sidebarOpen=!sidebarOpen">☰</button>
+        <div>
+          <div class="t-crumb">SWINGDESK · NEXUS · <span>{{TABS.find(t=>t.id===tab)?.label}}</span></div>
+        </div>
+      </div>
+      <div class="t-right">
+        <div class="t-badge"><span class="dot dot-green"></span>LIVE CALC</div>
+        <div class="t-badge"><span class="dot dot-amber"></span>NSE/BSE</div>
+        <div class="t-badge" style="color:var(--cyan);font-weight:500">INDIA</div>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- ══════════════ PORTFOLIO BUILDER ══════════════ -->
+      <section v-if="tab==='portfolio'" class="fade-in">
+        <div class="ph"><div class="ph-icon">◈</div><div><div class="ph-title">Portfolio Builder</div><div class="ph-sub">Project capital growth with monthly SIP additions and leverage over any time horizon.</div></div></div>
+
+        <div class="card mb">
+          <div class="card-label">Configuration Parameters</div>
+          <div class="g5 mb">
+            <div class="field"><label>Starting Capital (₹)</label><input type="number" v-model.number="pb.initial" min="0" step="100" placeholder="e.g. 500"/></div>
+            <div class="field"><label>Monthly SIP (₹)</label><input type="number" v-model.number="pb.monthly" min="0" step="100" placeholder="e.g. 500"/></div>
+            <div class="field"><label>Duration (Months)</label><input type="number" v-model.number="pb.months" min="1" max="240" step="1" placeholder="e.g. 12"/></div>
+            <div class="field"><label>Monthly Return (%)</label><input type="number" v-model.number="pb.rate" min="0" max="100" step="0.5" placeholder="e.g. 3"/></div>
+            <div class="field"><label>Leverage (1× – 5×)</label><input type="number" v-model.number="pb.leverage" min="1" max="5" step="0.5" placeholder="e.g. 1"/></div>
+          </div>
+          <div class="g4">
+            <div class="sc cyan"><div class="sc-label">Final Capital</div><div class="sc-val cyan">{{fmtINR(pbRows[pbRows.length-1]?.Capital||0)}}</div></div>
+            <div class="sc amber"><div class="sc-label">Leveraged Power</div><div class="sc-val amber">{{fmtINR(pbRows[pbRows.length-1]?.Leveraged||0)}}</div></div>
+            <div class="sc grey"><div class="sc-label">Total Invested</div><div class="sc-val grey">{{fmtINR((pb.initial||0)+(pb.monthly||0)*(pb.months||0))}}</div></div>
+            <div class="sc" :class="pbReturn>=0?'green':'red'"><div class="sc-label">Total Return</div><div class="sc-val" :class="pbReturn>=0?'green':'red'">{{fmt(pbReturn,2)}}%</div></div>
+          </div>
+        </div>
+
+        <div class="card amber-top mb">
+          <div class="card-label">Capital Growth Chart · Interactive (scroll to zoom)</div>
+          <div class="chart-box"><div id="pbChart" style="height:300px"></div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Month-by-Month Breakdown</div>
+          <div style="overflow-x:auto;max-height:320px;overflow-y:auto">
+            <table class="tbl">
+              <thead><tr>
+                <th>Month</th><th>Capital (₹)</th><th>Leveraged (₹)</th><th>Monthly Profit (₹)</th><th>Invested (₹)</th>
+              </tr></thead>
+              <tbody>
+                <tr v-for="r in pbRows" :key="r.m">
+                  <td style="color:var(--cyan)">M{{r.m}}</td>
+                  <td>{{fmt(r.Capital)}}</td>
+                  <td style="color:var(--amber)">{{fmt(r.Leveraged)}}</td>
+                  <td :style="r.Profit>=0?'color:var(--green)':'color:var(--red)'">{{r.Profit>=0?'+':''}}{{fmt(r.Profit)}}</td>
+                  <td style="color:var(--text3)">{{fmt(r.Invested)}}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════════ POSITION SIZER ══════════════ -->
+      <section v-if="tab==='position'" class="fade-in">
+        <div class="ph"><div class="ph-icon">⊡</div><div><div class="ph-title">Position Sizer</div><div class="ph-sub">Calculate the exact number of shares to buy so you never lose more than your risk limit.</div></div></div>
+
+        <div class="card mb">
+          <div class="card-label">Trade Parameters</div>
+          <div class="g5 mb">
+            <div class="field"><label>Capital (₹)</label><input type="number" v-model.number="ps.capital" min="0" step="100" placeholder="e.g. 5000"/></div>
+            <div class="field"><label>Risk / Trade (%)</label><input type="number" v-model.number="ps.riskPct" min="0.1" max="20" step="0.1" placeholder="e.g. 2"/></div>
+            <div class="field"><label>Leverage (1× – 5×)</label><input type="number" v-model.number="ps.leverage" min="1" max="5" step="0.5" placeholder="e.g. 1"/></div>
+            <div class="field"><label>Entry Price (₹)</label><input type="number" v-model.number="ps.entry" min="0.1" step="0.5" placeholder="e.g. 100"/></div>
+            <div class="field"><label>Stop Loss (₹)</label><input type="number" v-model.number="ps.sl" min="0.1" step="0.5" placeholder="e.g. 95"/></div>
+          </div>
+          <div class="g4">
+            <div class="sc red"><div class="sc-label">Max Risk Amount</div><div class="sc-val red">{{fmtINR(psRisk)}}</div></div>
+            <div class="sc cyan"><div class="sc-label">Shares to Buy</div><div class="sc-val cyan">{{psShares}}</div></div>
+            <div class="sc amber"><div class="sc-label">Position Value</div><div class="sc-val amber">{{fmtINR(psPosVal)}}</div></div>
+            <div class="sc grey"><div class="sc-label">SL Distance</div><div class="sc-val grey">{{fmt(psSlPct,2)}}%</div></div>
+            <div class="sc cyan"><div class="sc-label">Leveraged Capital</div><div class="sc-val cyan">{{fmtINR((ps.capital||0)*(ps.leverage||1))}}</div></div>
+            <div class="sc green"><div class="sc-label">Max Shares</div><div class="sc-val green">{{psMaxShares}}</div></div>
+            <div class="sc" :class="psCapUsed>100?'red':'green'"><div class="sc-label">Capital Used</div><div class="sc-val" :class="psCapUsed>100?'red':'green'">{{fmt(psCapUsed,1)}}%</div></div>
+            <div class="sc grey"><div class="sc-label">Margin Required</div><div class="sc-val grey">{{fmtINR(psPosVal/(ps.leverage||1))}}</div></div>
+          </div>
+        </div>
+
+        <div class="card amber-top mb">
+          <div class="card-label">Shares &amp; Position Value vs Risk % · Hover to explore</div>
+          <div class="chart-box"><div id="psChart" style="height:260px"></div></div>
+        </div>
+
+        <div class="alert alert-cyan">
+          <strong>Position Sizing Rule:</strong> With {{fmtINR(ps.capital||0)}} capital and {{ps.riskPct||0}}% risk per trade, max loss per trade = <strong>{{fmtINR(psRisk)}}</strong>.
+          Buy <strong>{{psShares}} shares</strong> at {{fmtINR(ps.entry||0)}} with SL at {{fmtINR(ps.sl||0)}} ({{fmt(psSlPct,1)}}% below entry).
+        </div>
+      </section>
+
+      <!-- ══════════════ RISK/REWARD ══════════════ -->
+      <section v-if="tab==='rr'" class="fade-in">
+        <div class="ph"><div class="ph-icon">⚖</div><div><div class="ph-title">Risk / Reward</div><div class="ph-sub">Evaluate trade quality. Aim for minimum 1:2 R:R before entering any trade.</div></div></div>
+
+        <div class="card mb">
+          <div class="card-label">Setup</div>
+          <div class="g4 mb">
+            <div class="field"><label>Entry (₹)</label><input type="number" v-model.number="rr.entry" min="0.1" step="0.5" placeholder="e.g. 100"/></div>
+            <div class="field"><label>Stop Loss (₹)</label><input type="number" v-model.number="rr.sl" min="0.1" step="0.5" placeholder="e.g. 95"/></div>
+            <div class="field"><label>Target (₹)</label><input type="number" v-model.number="rr.target" min="0.1" step="0.5" placeholder="e.g. 112"/></div>
+            <div class="field"><label>Quantity</label><input type="number" v-model.number="rr.qty" min="1" step="1" placeholder="e.g. 10"/></div>
+          </div>
+
+          <div class="card-label">Visual R:R Spectrum</div>
+          <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:.65rem;margin-bottom:6px">
+            <span style="color:var(--red)">▼ SL ₹{{rr.sl||0}}</span>
+            <span style="color:var(--text);font-weight:700">ENTRY ₹{{rr.entry||0}}</span>
+            <span style="color:var(--green)">▲ TGT ₹{{rr.target||0}}</span>
+          </div>
+          <div class="rr-bar mb">
+            <div class="rr-risk" :style="{flex:rrRiskPct}">−{{fmt(rrRiskPct,1)}}%</div>
+            <div style="width:2px;background:var(--text);flex-shrink:0"></div>
+            <div class="rr-reward" :style="{flex:rrRewardPct}">+{{fmt(rrRewardPct,1)}}%</div>
+          </div>
+          <div class="rr-ratio" :style="{color:rrRatio>=2?'var(--green)':rrRatio>=1?'var(--amber)':'var(--red)'}">
+            R : R = 1 : {{fmt(rrRatio,2)}}
+          </div>
+
+          <div class="g4" style="margin-top:16px">
+            <div class="sc red"><div class="sc-label">Risk (₹)</div><div class="sc-val red">{{fmtINR(rrRisk)}}</div></div>
+            <div class="sc green"><div class="sc-label">Reward (₹)</div><div class="sc-val green">{{fmtINR(rrReward)}}</div></div>
+            <div class="sc" :class="rrRatio>=2?'green':rrRatio>=1?'amber':'red'"><div class="sc-label">R:R Ratio</div><div class="sc-val" :class="rrRatio>=2?'green':rrRatio>=1?'amber':'red'">1 : {{fmt(rrRatio,2)}}</div></div>
+            <div class="sc cyan"><div class="sc-label">Min Win Rate Needed</div><div class="sc-val cyan">{{fmt(rrWinNeeded,1)}}%</div></div>
+          </div>
+        </div>
+
+        <div class="card green-top mb">
+          <div class="card-label">Net P&amp;L Curve Across Win Rates · Hover for exact values</div>
+          <div class="chart-box"><div id="rrChart" style="height:270px"></div></div>
+        </div>
+
+        <div class="alert" :class="rrRatio>=2?'alert-green':rrRatio>=1?'alert-amber':'alert-red'">
+          <span v-if="rrRatio>=2">✓ <strong>Excellent setup.</strong> 1:{{fmt(rrRatio,2)}} R:R — you only need to win {{fmt(rrWinNeeded,1)}}% of trades to be profitable long-term.</span>
+          <span v-else-if="rrRatio>=1">⚡ <strong>Acceptable.</strong> Aim for 1:2+ R:R. At this ratio you need {{fmt(rrWinNeeded,1)}}% win rate just to break even.</span>
+          <span v-else>✗ <strong>Poor setup.</strong> Below 1:1 R:R needs {{fmt(rrWinNeeded,1)}}% win rate — hard to sustain. Widen your target or tighten your SL.</span>
+        </div>
+      </section>
+
+      <!-- ══════════════ LEVERAGE CALC ══════════════ -->
+      <section v-if="tab==='leverage'" class="fade-in">
+        <div class="ph"><div class="ph-icon">✕</div><div><div class="ph-title">Leverage Calculator</div><div class="ph-sub">Visualise amplified gains and losses across all leverage levels simultaneously.</div></div></div>
+
+        <div class="card mb">
+          <div class="card-label">Parameters</div>
+          <div class="g3 mb">
+            <div class="field"><label>Capital (₹)</label><input type="number" v-model.number="lc.capital" min="0" step="100" placeholder="e.g. 5000"/></div>
+            <div class="field"><label>Leverage (1× – 5×)</label><input type="number" v-model.number="lc.leverage" min="1" max="5" step="0.5" placeholder="e.g. 2"/></div>
+            <div class="field"><label>Stock Move (%)</label><input type="number" v-model.number="lc.move" min="0" max="100" step="0.5" placeholder="e.g. 5"/></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn" :class="lc.dir==='up'?'on-green':''" @click="lc.dir='up'">▲ STOCK UP</button>
+            <button class="btn" :class="lc.dir==='down'?'on-red':''" @click="lc.dir='down'">▼ STOCK DOWN</button>
+          </div>
+          <div class="g3">
+            <div class="sc cyan"><div class="sc-label">Leveraged Capital</div><div class="sc-val cyan">{{fmtINR((lc.capital||0)*(lc.leverage||1))}}</div></div>
+            <div class="sc" :class="lcPnl>=0?'green':'red'"><div class="sc-label">P&amp;L</div><div class="sc-val" :class="lcPnl>=0?'green':'red'">{{lcPnl>=0?'+':''}}{{fmtINR(lcPnl)}}</div></div>
+            <div class="sc" :class="lcRet>=0?'green':'red'"><div class="sc-label">Return on Capital</div><div class="sc-val" :class="lcRet>=0?'green':'red'">{{lcPnl>=0?'+':''}}{{fmt(lcRet,2)}}%</div></div>
+          </div>
+        </div>
+
+        <div class="card amber-top mb">
+          <div class="card-label">P&amp;L Curve — All Leverage Levels · Zoom / Pan enabled</div>
+          <div class="chart-box"><div id="lcChart" style="height:320px"></div></div>
+        </div>
+
+        <div class="alert alert-amber">
+          ⚡ At <strong>{{lc.leverage||1}}× leverage</strong>, a <strong>{{fmt(100/(lc.leverage||1),1)}}% adverse move wipes your entire capital</strong>.
+          A {{lc.move||0}}% {{lc.dir==='up'?'upward':'downward'}} move returns
+          <strong>{{lcPnl>=0?'+':''}}{{fmtINR(lcPnl)}} ({{fmt(lcRet,1)}}%)</strong> on {{fmtINR(lc.capital||0)}}.
+        </div>
+      </section>
+
+      <!-- ══════════════ BROKERAGE ══════════════ -->
+      <section v-if="tab==='brokerage'" class="fade-in">
+        <div class="ph"><div class="ph-icon">₹</div><div><div class="ph-title">Brokerage Calculator</div><div class="ph-sub">True net P&amp;L after all Indian market charges — STT, exchange fees, GST, stamp duty.</div></div></div>
+
+        <div class="card mb">
+          <div class="card-label">Broker &amp; Segment</div>
+          <div class="btn-row">
+            <button v-for="b in ['zerodha','upstox','angel','groww','icici','hdfc']" :key="b" class="btn" :class="brok.broker===b?'on':''" @click="brok.broker=b">{{b.toUpperCase()}}</button>
+          </div>
+          <div class="btn-row">
+            <button v-for="s in [{k:'delivery',l:'DELIVERY'},{k:'intraday',l:'INTRADAY'},{k:'futures',l:'F&O FUTURES'},{k:'options',l:'F&O OPTIONS'}]" :key="s.k" class="btn" :class="brok.segment===s.k?'on':''" @click="brok.segment=s.k">{{s.l}}</button>
+          </div>
+        </div>
+
+        <div class="card mb">
+          <div class="card-label">Trade Details</div>
+          <div class="g3 mb">
+            <div class="field"><label>Buy Price (₹)</label><input type="number" v-model.number="brok.buy" min="0.1" step="0.5" placeholder="e.g. 100"/></div>
+            <div class="field"><label>Sell Price (₹)</label><input type="number" v-model.number="brok.sell" min="0.1" step="0.5" placeholder="e.g. 108"/></div>
+            <div class="field"><label>Quantity</label><input type="number" v-model.number="brok.qty" min="1" step="1" placeholder="e.g. 50"/></div>
+          </div>
+          <div class="g4">
+            <div class="sc" :class="brokGross>=0?'green':'red'"><div class="sc-label">Gross P&amp;L</div><div class="sc-val" :class="brokGross>=0?'green':'red'">{{brokGross>=0?'+':''}}{{fmtINR(brokGross)}}</div></div>
+            <div class="sc" :class="brokNet>=0?'green':'red'"><div class="sc-label">Net P&amp;L</div><div class="sc-val" :class="brokNet>=0?'green':'red'">{{brokNet>=0?'+':''}}{{fmtINR(brokNet)}}</div></div>
+            <div class="sc red"><div class="sc-label">Total Charges</div><div class="sc-val red">{{fmtINR(brokTotal)}}</div></div>
+            <div class="sc amber"><div class="sc-label">Breakeven Price</div><div class="sc-val amber">₹{{fmt(brokBEP,2)}}</div></div>
+          </div>
+        </div>
+
+        <div class="card green-top mb">
+          <div class="card-label">Gross vs Net P&amp;L · Hover for breakeven analysis</div>
+          <div class="chart-box"><div id="brokChart" style="height:270px"></div></div>
+        </div>
+
+        <div class="card red-top">
+          <div class="card-label">Charge Breakdown</div>
+          <div class="cr" v-for="c in brokCharges" :key="c.name">
+            <span class="cr-label">{{c.name}}</span>
+            <span class="cr-val">₹{{fmt(c.val,4)}}</span>
+          </div>
+          <div class="cr" style="border-top:1px solid var(--border);margin-top:4px">
+            <span class="cr-label" style="color:var(--text);font-weight:600">Total Charges</span>
+            <span class="cr-val" style="color:var(--red);font-family:'JetBrains Mono',monospace">₹{{fmt(brokTotal,4)}}</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════════ SIMULATOR ══════════════ -->
+      <section v-if="tab==='simulator'" class="fade-in">
+        <div class="ph"><div class="ph-icon">↗</div><div><div class="ph-title">Growth Simulator</div><div class="ph-sub">Simulate realistic portfolio growth from your actual trading edge and statistics.</div></div></div>
+
+        <div class="card mb">
+          <div class="card-label">Trading System Parameters</div>
+          <div class="g4 mb">
+            <div class="field"><label>Starting Capital (₹)</label><input type="number" v-model.number="sim.capital" min="0" step="100" placeholder="e.g. 500"/></div>
+            <div class="field"><label>Monthly SIP (₹)</label><input type="number" v-model.number="sim.monthly" min="0" step="100" placeholder="e.g. 500"/></div>
+            <div class="field"><label>Win Rate (%)</label><input type="number" v-model.number="sim.winRate" min="1" max="99" step="1" placeholder="e.g. 55"/></div>
+            <div class="field"><label>Avg Win (%)</label><input type="number" v-model.number="sim.avgWin" min="0.1" max="100" step="0.5" placeholder="e.g. 6"/></div>
+            <div class="field"><label>Avg Loss (%)</label><input type="number" v-model.number="sim.avgLoss" min="0.1" max="100" step="0.5" placeholder="e.g. 3"/></div>
+            <div class="field"><label>Trades / Month</label><input type="number" v-model.number="sim.trades" min="1" max="100" step="1" placeholder="e.g. 8"/></div>
+            <div class="field"><label>Leverage (1× – 5×)</label><input type="number" v-model.number="sim.leverage" min="1" max="5" step="0.5" placeholder="e.g. 1"/></div>
+            <div class="field"><label>Duration (Months)</label><input type="number" v-model.number="sim.months" min="1" max="60" step="1" placeholder="e.g. 12"/></div>
+          </div>
+          <div class="g4">
+            <div class="sc" :class="simExp>=0?'green':'red'"><div class="sc-label">Per-Trade Expectancy</div><div class="sc-val" :class="simExp>=0?'green':'red'">{{fmt(simExp,3)}}%</div></div>
+            <div class="sc" :class="simMonthlyExp>=0?'green':'red'"><div class="sc-label">Monthly Expectancy</div><div class="sc-val" :class="simMonthlyExp>=0?'green':'red'">{{fmt(simMonthlyExp,2)}}%</div></div>
+            <div class="sc cyan"><div class="sc-label">Final Capital</div><div class="sc-val cyan">{{fmtINR(simFinal)}}</div></div>
+            <div class="sc" :class="simTotalReturn>=0?'green':'red'"><div class="sc-label">Total Return</div><div class="sc-val" :class="simTotalReturn>=0?'green':'red'">{{fmt(simTotalReturn,1)}}%</div></div>
+          </div>
+        </div>
+
+        <div class="card amber-top mb">
+          <div class="card-label">Portfolio Growth Simulation · Area Chart</div>
+          <div class="chart-box"><div id="simChart" style="height:300px"></div></div>
+        </div>
+
+        <div class="card green-top mb">
+          <div class="card-label">Monthly Profit / Loss Trend</div>
+          <div class="chart-box"><div id="simProfitChart" style="height:220px"></div></div>
+        </div>
+
+        <div class="alert" :class="simExp>=0?'alert-green':'alert-red'">
+          <span v-if="simExp>=0">✓ <strong>Positive edge.</strong> {{sim.winRate||0}}% win rate, {{sim.avgWin||0}}% avg win, {{sim.avgLoss||0}}% avg loss → <strong>{{fmt(simExp,3)}}%</strong> per-trade expectancy across {{sim.trades||0}} trades/month.</span>
+          <span v-else>✗ <strong>Negative expectancy.</strong> Your average loss outweighs wins adjusted for win rate. Fix your R:R or win rate before going live.</span>
+        </div>
+      </section>
+
+      <!-- ══════════════ STRATEGY PLANNER ══════════════ -->
+      <section v-if="tab==='strategy'" class="fade-in">
+        <div class="ph"><div class="ph-icon">◎</div><div><div class="ph-title">Strategy Planner</div><div class="ph-sub">Your personalised 12-month roadmap from ₹0 edge to consistent profitability.</div></div></div>
+
+        <div class="card mb">
+          <div class="card-label">Your Situation</div>
+          <div class="g5 mb">
+            <div class="field"><label>Starting Capital (₹)</label><input type="number" v-model.number="strat.capital" min="0" step="100" placeholder="e.g. 500"/></div>
+            <div class="field"><label>Monthly SIP (₹)</label><input type="number" v-model.number="strat.monthly" min="0" step="100" placeholder="e.g. 500"/></div>
+            <div class="field"><label>Annual Target (%)</label><input type="number" v-model.number="strat.target" min="1" max="500" step="5" placeholder="e.g. 20"/></div>
+            <div class="field"><label>Max Risk / Trade (%)</label><input type="number" v-model.number="strat.riskPct" min="0.1" max="10" step="0.1" placeholder="e.g. 2"/></div>
+            <div class="field"><label>Max Leverage</label><input type="number" v-model.number="strat.maxLev" min="1" max="5" step="0.5" placeholder="e.g. 2"/></div>
+          </div>
+          <div class="g4">
+            <div class="sc red"><div class="sc-label">Max Risk / Trade</div><div class="sc-val red">{{fmtINR((strat.capital||0)*(strat.riskPct||0)/100)}}</div></div>
+            <div class="sc cyan"><div class="sc-label">Leveraged Power</div><div class="sc-val cyan">{{fmtINR((strat.capital||0)*(strat.maxLev||1))}}</div></div>
+            <div class="sc amber"><div class="sc-label">Monthly Target</div><div class="sc-val amber">{{fmt((strat.target||0)/12,2)}}%</div></div>
+            <div class="sc green"><div class="sc-label">Min Win Rate (1:2 R:R)</div><div class="sc-val green">33.3%</div></div>
+          </div>
+        </div>
+
+        <div class="card amber-top mb">
+          <div class="card-label">12-Month Capital Projection (Phased Leverage)</div>
+          <div class="chart-box"><div id="stratChart" style="height:280px"></div></div>
+        </div>
+
+        <div class="card mb">
+          <div class="card-label">Phase-by-Phase Game Plan</div>
+          <div class="tl">
+            <div class="tl-item" v-for="(p,i) in stratPhases" :key="i">
+              <div class="tl-num">{{i+1}}</div>
+              <div class="tl-body">
+                <div class="tl-phase">{{p.phase}}</div>
+                <div class="tl-focus">{{p.focus}}</div>
+                <div class="tl-action">{{p.action}}</div>
+              </div>
+              <div class="tl-cap">{{fmtINR(p.cap)}}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Your Personal Trading Rules</div>
+          <ul class="rules">
+            <li v-for="(r,i) in stratRules" :key="i">
+              <span class="rule-n">{{i+1}}</span><span>{{r}}</span>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ══════════════ STOP LOSS ══════════════ -->
+      <section v-if="tab==='stoploss'" class="fade-in">
+        <div class="ph"><div class="ph-icon">⊘</div><div><div class="ph-title">Stop Loss Calculator</div><div class="ph-sub">Set precise stop losses by %, ATR, or support level. Visualise trailing vs fixed.</div></div></div>
+
+        <div class="card mb">
+          <div class="card-label">Method</div>
+          <div class="tg-row">
+            <button class="tg-btn" :class="sl.method==='pct'?'on':''" @click="sl.method='pct'">% BASED</button>
+            <button class="tg-btn" :class="sl.method==='atr'?'on':''" @click="sl.method='atr'">ATR BASED</button>
+            <button class="tg-btn" :class="sl.method==='support'?'on':''" @click="sl.method='support'">SUPPORT LEVEL</button>
+          </div>
+
+          <div class="g3 mb">
+            <div class="field"><label>Entry Price (₹)</label><input type="number" v-model.number="sl.entry" min="0.1" step="0.5" placeholder="e.g. 100"/></div>
+            <div class="field"><label>Capital (₹)</label><input type="number" v-model.number="sl.capital" min="0" step="100" placeholder="e.g. 5000"/></div>
+            <div class="field"><label>Risk / Trade (%)</label><input type="number" v-model.number="sl.riskPct" min="0.1" max="20" step="0.1" placeholder="e.g. 2"/></div>
+            <div class="field" v-if="sl.method==='pct'"><label>SL % Below Entry</label><input type="number" v-model.number="sl.slPct" min="0.1" max="50" step="0.5" placeholder="e.g. 5"/></div>
+            <div class="field" v-if="sl.method==='atr'"><label>ATR Value (₹)</label><input type="number" v-model.number="sl.atr" min="0.01" step="0.1" placeholder="e.g. 3"/></div>
+            <div class="field" v-if="sl.method==='atr'"><label>ATR Multiplier</label><input type="number" v-model.number="sl.atrMul" min="0.5" max="5" step="0.5" placeholder="e.g. 2"/></div>
+            <div class="field" v-if="sl.method==='support'"><label>Support Level (₹)</label><input type="number" v-model.number="sl.support" min="0.1" step="0.5" placeholder="e.g. 94"/></div>
+            <div class="field" v-if="sl.method==='support'"><label>Buffer Below Support (%)</label><input type="number" v-model.number="sl.supportBuf" min="0.1" max="5" step="0.1" placeholder="e.g. 0.5"/></div>
+            <div class="field"><label>Trailing SL (%)</label><input type="number" v-model.number="sl.trailPct" min="0.1" max="50" step="0.5" placeholder="e.g. 3"/></div>
+          </div>
+
+          <div class="g4">
+            <div class="sc red"><div class="sc-label">Stop Loss Price</div><div class="sc-val red">₹{{fmt(slPrice,2)}}</div></div>
+            <div class="sc amber"><div class="sc-label">SL Distance</div><div class="sc-val amber">{{fmt(slDistPct,2)}}%</div></div>
+            <div class="sc cyan"><div class="sc-label">Shares to Buy</div><div class="sc-val cyan">{{slShares}}</div></div>
+            <div class="sc green"><div class="sc-label">Position Size</div><div class="sc-val green">{{fmtINR((slShares||0)*(sl.entry||0))}}</div></div>
+          </div>
+        </div>
+
+        <div class="card amber-top mb">
+          <div class="card-label">Fixed SL vs Trailing SL · Price rising +2%/day simulation</div>
+          <div class="chart-box"><div id="slChart" style="height:280px"></div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Stop Loss Methods Reference</div>
+          <div class="slm">
+            <div class="slm-item"><div class="slm-name">% BASED</div><div class="slm-desc">Set SL at a fixed % below entry. Simple and predictable. Best for beginners and volatile stocks. Easy to plan position size around.</div></div>
+            <div class="slm-item"><div class="slm-name">ATR BASED</div><div class="slm-desc">Uses Average True Range × multiplier. Adapts to stock's natural volatility. Avoids premature stop-outs from normal price fluctuations.</div></div>
+            <div class="slm-item"><div class="slm-name">SUPPORT</div><div class="slm-desc">Place SL just below a key support level (0.3–0.5% buffer). Most contextual method. Requires chart reading ability.</div></div>
+            <div class="slm-item"><div class="slm-name">TRAILING</div><div class="slm-desc">SL moves up as price rises, locking in profits. Let winners run while protecting gains. Use only after trade is already profitable.</div></div>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /content -->
+  </main>
+</div>
+
+<script>
+const{createApp,ref,computed,watch,onMounted,nextTick}=Vue;
+
+const fmtINR=n=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(n||0);
+const fmt=(n,d=2)=>new Intl.NumberFormat('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d}).format(n||0);
+const fmtK=n=>{const a=Math.abs(n||0);if(a>=1e5)return`₹${(n/1e5).toFixed(1)}L`;if(a>=1e3)return`₹${(n/1e3).toFixed(1)}K`;return`₹${(n||0).toFixed(0)}`};
+
+/* ── ECHARTS THEME ─────────────────────────────────────────────────────── */
+const EC_BG='transparent';
+const EC_GRID={top:12,right:16,bottom:36,left:68,containLabel:false};
+const EC_TEXT={color:'rgba(224,244,255,.35)',fontFamily:'JetBrains Mono',fontSize:10};
+const EC_LINE_COLOR='rgba(0,229,255,.08)';
+const EC_TOOLTIP={
+  backgroundColor:'rgba(6,13,26,.95)',borderColor:'rgba(0,229,255,.25)',borderWidth:1,
+  textStyle:{color:'#E0F4FF',fontFamily:'JetBrains Mono',fontSize:11},
+  padding:[10,14],extraCssText:'box-shadow:0 0 20px rgba(0,229,255,.15);border-radius:4px;',
+  formatter:params=>{
+    const arr=Array.isArray(params)?params:[params];
+    let s=`<div style="color:rgba(224,244,255,.5);margin-bottom:6px;font-size:.6rem;letter-spacing:1px">${arr[0].axisValueLabel||arr[0].name}</div>`;
+    arr.forEach(p=>{s+=`<div style="margin-bottom:3px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};margin-right:6px;box-shadow:0 0 6px ${p.color}"></span><span style="color:rgba(224,244,255,.5)">${p.seriesName}: </span><span style="font-weight:600;color:${p.color}">${fmtK(p.value||0)}</span></div>`;});
+    return s;
+  }
+};
+const EC_X_AXIS={axisLine:{lineStyle:{color:EC_LINE_COLOR}},axisTick:{show:false},axisLabel:EC_TEXT,splitLine:{show:false}};
+const EC_Y_AXIS={axisLine:{show:false},axisTick:{show:false},axisLabel:{...EC_TEXT,formatter:v=>fmtK(v)},splitLine:{lineStyle:{color:EC_LINE_COLOR,type:'dashed'}}};
+const EC_ZOOM=[{type:'inside',zoomOnMouseWheel:true,moveOnMouseWheel:false},{type:'slider',show:false}];
+
+const charts={};
+function ec(id,opt){
+  if(charts[id])charts[id].dispose();
+  const el=document.getElementById(id);if(!el)return;
+  const c=echarts.init(el,null,{renderer:'canvas'});
+  c.setOption(opt);charts[id]=c;
+  window.addEventListener('resize',()=>c.resize());
+  return c;
+}
+
+/* ── COLORS ──────────────────────────────────────────────────────────── */
+const C={
+  cyan:'#00E5FF',amber:'#FF9500',green:'#00FF88',red:'#FF3B5C',
+  blue:'#38BDF8',violet:'#A78BFA',grey:'rgba(224,244,255,.25)',
+  cyanA:'rgba(0,229,255,.15)',amberA:'rgba(255,149,0,.12)',
+  greenA:'rgba(0,255,136,.12)',redA:'rgba(255,59,92,.1)',
+};
+
+createApp({
+  setup(){
+    const sidebarOpen=ref(false);
+    const tab=ref('portfolio');
+    const TABS=[
+      {id:'portfolio',label:'Portfolio Builder',icon:'◈'},
+      {id:'position', label:'Position Sizer',   icon:'⊡'},
+      {id:'rr',       label:'Risk / Reward',    icon:'⚖'},
+      {id:'leverage', label:'Leverage Calc',    icon:'✕'},
+      {id:'brokerage',label:'Brokerage Calc',   icon:'₹'},
+      {id:'simulator',label:'Growth Simulator', icon:'↗'},
+      {id:'strategy', label:'Strategy Planner', icon:'◎'},
+      {id:'stoploss', label:'Stop Loss Calc',   icon:'⊘'},
+    ];
+
+    /* ── PORTFOLIO ─────────────────────────────────────────────────── */
+    const pb=ref({initial:'',monthly:'',months:'',rate:'',leverage:''});
+    const pbRows=computed(()=>{
+      const rows=[];let cap=parseFloat(pb.value.initial)||0;
+      const months=parseInt(pb.value.months)||0;
+      const lev=parseFloat(pb.value.leverage)||1;
+      const rate=parseFloat(pb.value.rate)||0;
+      const mon=parseFloat(pb.value.monthly)||0;
+      for(let m=1;m<=months;m++){
+        const profit=cap*lev*(rate/100);
+        cap+=profit+mon;
+        rows.push({m,Capital:+cap.toFixed(2),Leveraged:+(cap*lev).toFixed(2),Invested:+((parseFloat(pb.value.initial)||0)+mon*m).toFixed(2),Profit:+profit.toFixed(2)});
+      }
+      return rows;
+    });
+    const pbReturn=computed(()=>{
+      const inv=(parseFloat(pb.value.initial)||0)+(parseFloat(pb.value.monthly)||0)*(parseInt(pb.value.months)||0);
+      const fin=pbRows.value[pbRows.value.length-1]?.Capital||0;
+      return inv>0?((fin-inv)/inv)*100:0;
+    });
+
+    /* ── POSITION ──────────────────────────────────────────────────── */
+    const ps=ref({capital:'',riskPct:'',leverage:'',entry:'',sl:''});
+    const psCap=computed(()=>parseFloat(ps.value.capital)||0);
+    const psEntry=computed(()=>parseFloat(ps.value.entry)||0);
+    const psSl=computed(()=>parseFloat(ps.value.sl)||0);
+    const psLev=computed(()=>parseFloat(ps.value.leverage)||1);
+    const psRisk=computed(()=>psCap.value*(parseFloat(ps.value.riskPct)||0)/100);
+    const psSlPct=computed(()=>psEntry.value>0?Math.abs((psEntry.value-psSl.value)/psEntry.value)*100:0);
+    const psShares=computed(()=>{const d=psEntry.value-psSl.value;return d>0?Math.floor(psRisk.value/d):0});
+    const psPosVal=computed(()=>psShares.value*psEntry.value);
+    const psMaxShares=computed(()=>psEntry.value>0?Math.floor(psCap.value*psLev.value/psEntry.value):0);
+    const psCapUsed=computed(()=>(psCap.value*psLev.value)>0?(psPosVal.value/(psCap.value*psLev.value))*100:0);
+
+    /* ── RR ────────────────────────────────────────────────────────── */
+    const rr=ref({entry:'',sl:'',target:'',qty:''});
+    const rrEntry=computed(()=>parseFloat(rr.value.entry)||0);
+    const rrSl=computed(()=>parseFloat(rr.value.sl)||0);
+    const rrTarget=computed(()=>parseFloat(rr.value.target)||0);
+    const rrQty=computed(()=>parseInt(rr.value.qty)||0);
+    const rrRiskPct=computed(()=>rrEntry.value>0?Math.abs((rrEntry.value-rrSl.value)/rrEntry.value)*100:0);
+    const rrRewardPct=computed(()=>rrEntry.value>0?Math.max(0,(rrTarget.value-rrEntry.value)/rrEntry.value*100):0);
+    const rrRisk=computed(()=>(rrEntry.value-rrSl.value)*rrQty.value);
+    const rrReward=computed(()=>(rrTarget.value-rrEntry.value)*rrQty.value);
+    const rrRatio=computed(()=>rrRisk.value>0?rrReward.value/rrRisk.value:0);
+    const rrWinNeeded=computed(()=>rrRatio.value>0?(1/(1+rrRatio.value))*100:0);
+
+    /* ── LEVERAGE ──────────────────────────────────────────────────── */
+    const lc=ref({capital:'',leverage:'',move:'',dir:'up'});
+    const lcPnl=computed(()=>(lc.value.dir==='up'?1:-1)*(parseFloat(lc.value.move)||0)/100*(parseFloat(lc.value.capital)||0)*(parseFloat(lc.value.leverage)||1));
+    const lcRet=computed(()=>(parseFloat(lc.value.capital)||0)>0?(lcPnl.value/(parseFloat(lc.value.capital)||1))*100:0);
+
+    /* ── BROKERAGE ─────────────────────────────────────────────────── */
+    const brok=ref({broker:'zerodha',segment:'delivery',buy:'',sell:'',qty:''});
+    const brokBuyVal=computed(()=>(parseFloat(brok.value.buy)||0)*(parseInt(brok.value.qty)||0));
+    const brokSellVal=computed(()=>(parseFloat(brok.value.sell)||0)*(parseInt(brok.value.qty)||0));
+    const brokTurnover=computed(()=>brokBuyVal.value+brokSellVal.value);
+    const brokCharges=computed(()=>{
+      const s=brok.value.segment;
+      const rate=s==='delivery'?0:0.0003;
+      const brokBuy=s==='delivery'?0:Math.min(brokBuyVal.value*rate,20);
+      const brokSell=s==='delivery'?0:Math.min(brokSellVal.value*rate,20);
+      const brokage=brokBuy+brokSell;
+      const sttRate=s==='delivery'?0.001:0.00025;
+      const sttBase=s==='delivery'?brokSellVal.value:brokTurnover.value/2;
+      const stt=sttBase*sttRate;
+      const exchRate=s==='futures'||s==='options'?0.0000019:0.0000322;
+      const exch=brokTurnover.value*exchRate;
+      const sebi=brokTurnover.value*0.000001;
+      const gst=(brokage+exch)*0.18;
+      const stampRate=s==='delivery'?0.00015:0.00003;
+      const stamp=brokBuyVal.value*stampRate;
+      return[{name:'Brokerage',val:brokage},{name:'STT / CTT',val:stt},{name:'Exchange Transaction Charges',val:exch},{name:'SEBI Charges',val:sebi},{name:'GST (18%)',val:gst},{name:'Stamp Duty',val:stamp}];
+    });
+    const brokTotal=computed(()=>brokCharges.value.reduce((s,r)=>s+r.val,0));
+    const brokGross=computed(()=>((parseFloat(brok.value.sell)||0)-(parseFloat(brok.value.buy)||0))*(parseInt(brok.value.qty)||0));
+    const brokNet=computed(()=>brokGross.value-brokTotal.value);
+    const brokBEP=computed(()=>(parseFloat(brok.value.buy)||0)>0&&(parseInt(brok.value.qty)||0)>0?(parseFloat(brok.value.buy)||0)+brokTotal.value/(parseInt(brok.value.qty)||1):0);
+
+    /* ── SIMULATOR ─────────────────────────────────────────────────── */
+    const sim=ref({capital:'',monthly:'',winRate:'',avgWin:'',avgLoss:'',trades:'',leverage:'',months:''});
+    const simExp=computed(()=>(parseFloat(sim.value.winRate)||0)/100*(parseFloat(sim.value.avgWin)||0)-(1-(parseFloat(sim.value.winRate)||0)/100)*(parseFloat(sim.value.avgLoss)||0));
+    const simMonthlyExp=computed(()=>simExp.value*(parseInt(sim.value.trades)||0));
+    const simRows=computed(()=>{
+      const rows=[];let cap=parseFloat(sim.value.capital)||0;
+      const months=parseInt(sim.value.months)||0;
+      const mon=parseFloat(sim.value.monthly)||0;
+      const lev=parseFloat(sim.value.leverage)||1;
+      for(let m=1;m<=months;m++){
+        const profit=Math.max((simExp.value/100)*(parseInt(sim.value.trades)||0)*cap*lev,-cap);
+        cap=Math.max(0,cap+profit)+mon;
+        rows.push({m,Capital:+cap.toFixed(2),Invested:+((parseFloat(sim.value.capital)||0)+mon*m).toFixed(2),Profit:+profit.toFixed(2)});
+      }
+      return rows;
+    });
+    const simFinal=computed(()=>simRows.value[simRows.value.length-1]?.Capital||0);
+    const simTotalInv=computed(()=>(parseFloat(sim.value.capital)||0)+(parseFloat(sim.value.monthly)||0)*(parseInt(sim.value.months)||0));
+    const simTotalReturn=computed(()=>simTotalInv.value>0?((simFinal.value-simTotalInv.value)/simTotalInv.value)*100:0);
+
+    /* ── STRATEGY ──────────────────────────────────────────────────── */
+    const strat=ref({capital:'',monthly:'',target:'',riskPct:'',maxLev:''});
+    const stratPhases=computed(()=>{
+      const c=parseFloat(strat.value.capital)||0,m=parseFloat(strat.value.monthly)||0;
+      const t=parseFloat(strat.value.target)||0,rp=parseFloat(strat.value.riskPct)||0,l=parseFloat(strat.value.maxLev)||1;
+      return[
+        {phase:'Month 1–3',  cap:c+m*3, focus:'Paper trade only — zero real money on the line.',           action:'Study 3 setups: Breakout, Pullback, Range Reversal. Build your trading journal. Define your edge.'},
+        {phase:'Month 4–6',  cap:c+m*6, focus:`Live at 1× leverage, ${(rp/2).toFixed(1)}% risk/trade.`,   action:`Target ${(t/12/2).toFixed(1)}%/month. Take only A+ setups. Max 4–6 trades per month.`},
+        {phase:'Month 7–9',  cap:c+m*9, focus:`Scale to 2× leverage, ${rp}% risk/trade.`,                  action:`Target ${(t/12).toFixed(1)}%/month. Review journal every Sunday. Work on improving win rate.`},
+        {phase:'Month 10–12',cap:c+m*12,focus:`Full system — ${l}× max leverage.`,                          action:`Annual target ${t}% → ${fmtINR(c*t/100)} profit. Compound consistently and stay disciplined.`},
+      ];
+    });
+    const stratRules=computed(()=>{
+      const c=parseFloat(strat.value.capital)||0,m=parseFloat(strat.value.monthly)||0;
+      const rp=parseFloat(strat.value.riskPct)||0,l=parseFloat(strat.value.maxLev)||1;
+      return[
+        `Keep ≥50% in safe assets (FD, Liquid MF). Max trading allocation: ${fmtINR(c*0.5)}.`,
+        `Start at 1× leverage. Add leverage only after 3 consecutive profitable months. Maximum: ${l}×.`,
+        `Stop loss is NON-NEGOTIABLE. Max loss per trade: ${fmtINR(c*rp/100)} (${rp}% of capital).`,
+        `Swing hold: 2–10 days. Only NSE stocks with >5 lakh average daily volume.`,
+        `Deploy ₹${m||0} SIP on 1st of every month — invest before you trade.`,
+        `Every Sunday: review win %, avg R:R, total brokerage paid, biggest mistake.`,
+        `Never average down on a losing trade. Cut losses fast, let winners run.`,
+        `Max 3 open positions at a time. Concentration beats diversification for small accounts.`,
+      ];
+    });
+
+    /* ── STOP LOSS ─────────────────────────────────────────────────── */
+    const sl=ref({entry:'',capital:'',riskPct:'',method:'pct',slPct:'',atr:'',atrMul:'',support:'',supportBuf:'',trailPct:''});
+    const slPrice=computed(()=>{
+      const e=parseFloat(sl.value.entry)||0;
+      if(sl.value.method==='pct')return+(e*(1-(parseFloat(sl.value.slPct)||0)/100)).toFixed(2);
+      if(sl.value.method==='atr')return+(e-(parseFloat(sl.value.atr)||0)*(parseFloat(sl.value.atrMul)||0)).toFixed(2);
+      return+((parseFloat(sl.value.support)||0)*(1-(parseFloat(sl.value.supportBuf)||0)/100)).toFixed(2);
+    });
+    const slDistPct=computed(()=>(parseFloat(sl.value.entry)||0)>0?((parseFloat(sl.value.entry)||0)-slPrice.value)/(parseFloat(sl.value.entry)||1)*100:0);
+    const slShares=computed(()=>{const d=(parseFloat(sl.value.entry)||0)-slPrice.value;return d>0?Math.floor((parseFloat(sl.value.capital)||0)*(parseFloat(sl.value.riskPct)||0)/100/d):0});
+
+    /* ══ CHART RENDERERS ════════════════════════════════════════════ */
+    function renderPb(){
+      if(!pbRows.value.length)return;
+      const labels=pbRows.value.map(r=>`M${r.m}`);
+      ec('pbChart',{backgroundColor:EC_BG,grid:EC_GRID,tooltip:{...EC_TOOLTIP,trigger:'axis'},legend:{data:['Invested','Capital','Leveraged'],textStyle:{...EC_TEXT,color:'rgba(224,244,255,.5)'},top:0,right:8},xAxis:{...EC_X_AXIS,data:labels},yAxis:{...EC_Y_AXIS},dataZoom:EC_ZOOM,
+        series:[
+          {name:'Invested',type:'line',data:pbRows.value.map(r=>r.Invested),lineStyle:{color:C.grey,width:1.5,type:'dashed'},itemStyle:{color:C.grey},showSymbol:false,smooth:true},
+          {name:'Capital',type:'line',data:pbRows.value.map(r=>r.Capital),lineStyle:{color:C.cyan,width:2.5},itemStyle:{color:C.cyan},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(0,229,255,.2)'},{offset:1,color:'rgba(0,229,255,.01)'}]}},showSymbol:false,smooth:true},
+          {name:'Leveraged',type:'line',data:pbRows.value.map(r=>r.Leveraged),lineStyle:{color:C.amber,width:2},itemStyle:{color:C.amber},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(255,149,0,.12)'},{offset:1,color:'transparent'}]}},showSymbol:false,smooth:true},
+        ]
+      });
+    }
+
+    function renderPs(){
+      const riskRange=[0.5,1,1.5,2,2.5,3,4,5];
+      const cap=psCap.value,entry=psEntry.value,slV=psSl.value;
+      const d=entry-slV;
+      const shares=riskRange.map(r=>{const ra=cap*r/100;return d>0?Math.floor(ra/d):0});
+      const posVals=riskRange.map((_,i)=>shares[i]*entry);
+      ec('psChart',{backgroundColor:EC_BG,grid:{...EC_GRID,right:68},tooltip:{...EC_TOOLTIP,trigger:'axis'},legend:{data:['Shares','Position Value ₹'],textStyle:{...EC_TEXT,color:'rgba(224,244,255,.5)'},top:0,right:8},
+        xAxis:{...EC_X_AXIS,data:riskRange.map(r=>`${r}%`)},
+        yAxis:[{...EC_Y_AXIS,name:'Shares',nameTextStyle:EC_TEXT,nameLocation:'end'},{...EC_Y_AXIS,position:'right',name:'Value ₹',nameTextStyle:EC_TEXT,nameLocation:'end',axisLine:{show:false},splitLine:{show:false}}],
+        dataZoom:EC_ZOOM,
+        series:[
+          {name:'Shares',type:'line',data:shares,yAxisIndex:0,lineStyle:{color:C.cyan,width:2.5},itemStyle:{color:C.cyan},symbolSize:6,smooth:true,markLine:{silent:true,symbol:['none','none'],lineStyle:{color:C.amber,type:'dashed',width:1},data:[{xAxis:`${parseFloat(ps.value.riskPct)||0}%`}]}},
+          {name:'Position Value ₹',type:'line',data:posVals,yAxisIndex:1,lineStyle:{color:C.amber,width:2},itemStyle:{color:C.amber},symbolSize:6,smooth:true},
+        ]
+      });
+    }
+
+    function renderRr(){
+      const pts=Array.from({length:11},(_,i)=>i*10);
+      const pnl=pts.map(wr=>(wr/100)*rrReward.value-((100-wr)/100)*rrRisk.value);
+      ec('rrChart',{backgroundColor:EC_BG,grid:EC_GRID,tooltip:{...EC_TOOLTIP,trigger:'axis'},
+        xAxis:{...EC_X_AXIS,data:pts.map(p=>`${p}%`)},
+        yAxis:{...EC_Y_AXIS},
+        dataZoom:EC_ZOOM,
+        visualMap:{show:false,dimension:1,pieces:[{lt:0,color:C.red},{gte:0,color:C.green}]},
+        series:[{
+          name:'Net P&L',type:'line',data:pnl,
+          lineStyle:{width:2.5},symbolSize:7,smooth:false,
+          markLine:{silent:true,symbol:['none','none'],lineStyle:{color:'rgba(224,244,255,.2)',type:'dashed',width:1},data:[{yAxis:0},{xAxis:`${Math.round(rrWinNeeded.value/10)*10}%`}]},
+          areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:pnl.some(v=>v>=0)?[{offset:0,color:'rgba(0,255,136,.18)'},{offset:0.6,color:'rgba(0,255,136,.02)'},{offset:1,color:'transparent'}]:[{offset:0,color:'transparent'},{offset:1,color:'rgba(255,59,92,.12)'}]}},
+        }]
+      });
+    }
+
+    function renderLc(){
+      const moves=[-15,-12,-10,-8,-5,-3,-1,0,1,3,5,8,10,12,15];
+      const levs=[1,2,3,4,5];
+      const colors=[C.grey,C.blue,C.violet,C.amber,C.red];
+      const curLev=parseFloat(lc.value.leverage)||1;
+      const cap=parseFloat(lc.value.capital)||0;
+      ec('lcChart',{backgroundColor:EC_BG,grid:EC_GRID,tooltip:{...EC_TOOLTIP,trigger:'axis'},legend:{data:levs.map(l=>`${l}×`),textStyle:{...EC_TEXT,color:'rgba(224,244,255,.5)'},top:0,right:8},
+        xAxis:{...EC_X_AXIS,data:moves.map(m=>`${m>0?'+':''}${m}%`)},
+        yAxis:{...EC_Y_AXIS},
+        dataZoom:EC_ZOOM,
+        series:levs.map((lev,i)=>({
+          name:`${lev}×`,type:'line',data:moves.map(m=>+(m/100*cap*lev).toFixed(2)),
+          lineStyle:{color:colors[i],width:lev===Math.round(curLev)?3:1.5,type:lev===Math.round(curLev)?'solid':'dashed'},
+          itemStyle:{color:colors[i]},showSymbol:false,smooth:false,
+          markLine:lev===Math.round(curLev)?{silent:true,symbol:['none','none'],lineStyle:{color:'rgba(224,244,255,.15)',type:'dashed'},data:[{yAxis:0}]}:{},
+        }))
+      });
+    }
+
+    function renderBrok(){
+      const pts=Array.from({length:21},(_,i)=>+((parseFloat(brok.value.buy)||100)*(0.9+i*0.01)).toFixed(2));
+      const qty=parseInt(brok.value.qty)||0;
+      const buy=parseFloat(brok.value.buy)||0;
+      const total=brokTotal.value;
+      const gross=pts.map(p=>+((p-buy)*qty).toFixed(2));
+      const net=pts.map(p=>+((p-buy)*qty-total).toFixed(2));
+      ec('brokChart',{backgroundColor:EC_BG,grid:EC_GRID,tooltip:{...EC_TOOLTIP,trigger:'axis'},legend:{data:['Gross P&L','Net P&L'],textStyle:{...EC_TEXT,color:'rgba(224,244,255,.5)'},top:0,right:8},
+        xAxis:{...EC_X_AXIS,data:pts.map(p=>`₹${p.toFixed(0)}`)},
+        yAxis:{...EC_Y_AXIS},
+        dataZoom:EC_ZOOM,
+        series:[
+          {name:'Gross P&L',type:'line',data:gross,lineStyle:{color:C.blue,width:2},itemStyle:{color:C.blue},showSymbol:false,smooth:true,markLine:{silent:true,symbol:['none','none'],lineStyle:{color:'rgba(224,244,255,.15)',type:'dashed'},data:[{yAxis:0}]}},
+          {name:'Net P&L',type:'line',data:net,lineStyle:{color:C.green,width:2.5},itemStyle:{color:C.green},showSymbol:false,smooth:true},
+        ]
+      });
+    }
+
+    function renderSim(){
+      if(!simRows.value.length)return;
+      const labels=simRows.value.map(r=>`M${r.m}`);
+      ec('simChart',{backgroundColor:EC_BG,grid:EC_GRID,tooltip:{...EC_TOOLTIP,trigger:'axis'},legend:{data:['Invested','Capital'],textStyle:{...EC_TEXT,color:'rgba(224,244,255,.5)'},top:0,right:8},
+        xAxis:{...EC_X_AXIS,data:labels},yAxis:{...EC_Y_AXIS},dataZoom:EC_ZOOM,
+        series:[
+          {name:'Invested',type:'line',data:simRows.value.map(r=>r.Invested),lineStyle:{color:C.grey,width:1.5,type:'dashed'},itemStyle:{color:C.grey},showSymbol:false,smooth:true},
+          {name:'Capital',type:'line',data:simRows.value.map(r=>r.Capital),lineStyle:{color:C.cyan,width:2.5},itemStyle:{color:C.cyan},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(0,229,255,.2)'},{offset:1,color:'rgba(0,229,255,.01)'}]}},showSymbol:false,smooth:true},
+        ]
+      });
+      const profitColors=simRows.value.map(r=>r.Profit>=0?C.green:C.red);
+      ec('simProfitChart',{backgroundColor:EC_BG,grid:EC_GRID,tooltip:{...EC_TOOLTIP,trigger:'axis',formatter:params=>{const p=params[0];return`<div style="color:rgba(224,244,255,.5);font-size:.6rem;letter-spacing:1px;margin-bottom:6px">${p.name}</div><span style="color:${p.value>=0?C.green:C.red};font-weight:600">${p.value>=0?'+':''}${fmtK(p.value)}</span>`}},
+        xAxis:{...EC_X_AXIS,data:labels},yAxis:{...EC_Y_AXIS},dataZoom:EC_ZOOM,
+        series:[{name:'Monthly Profit',type:'bar',data:simRows.value.map(r=>({value:r.Profit,itemStyle:{color:r.Profit>=0?'rgba(0,255,136,.6)':'rgba(255,59,92,.6)',borderColor:r.Profit>=0?C.green:C.red,borderWidth:1}})),barMaxWidth:14,markLine:{silent:true,symbol:['none','none'],lineStyle:{color:'rgba(224,244,255,.15)',type:'dashed'},data:[{yAxis:0}]}}]
+      });
+    }
+
+    function renderStrat(){
+      const phases=[];let c=parseFloat(strat.value.capital)||0;
+      const m=parseFloat(strat.value.monthly)||0,t=parseFloat(strat.value.target)||0,l=parseFloat(strat.value.maxLev)||1;
+      for(let mo=1;mo<=12;mo++){
+        const lv=mo<=3?0:mo<=6?1:mo<=9?1.5:l;
+        c+=c*lv*(t/100/12)+m;
+        phases.push({mo,cap:+c.toFixed(2),inv:+((parseFloat(strat.value.capital)||0)+m*mo).toFixed(2)});
+      }
+      const labels=phases.map(p=>`M${p.mo}`);
+      ec('stratChart',{backgroundColor:EC_BG,grid:{...EC_GRID,right:24},tooltip:{...EC_TOOLTIP,trigger:'axis'},legend:{data:['Invested','Projected Capital'],textStyle:{...EC_TEXT,color:'rgba(224,244,255,.5)'},top:0,right:8},
+        xAxis:{...EC_X_AXIS,data:labels},yAxis:{...EC_Y_AXIS},dataZoom:EC_ZOOM,
+        series:[
+          {name:'Invested',type:'line',data:phases.map(p=>p.inv),lineStyle:{color:C.grey,width:1.5,type:'dashed'},itemStyle:{color:C.grey},showSymbol:false,smooth:true},
+          {name:'Projected Capital',type:'line',data:phases.map(p=>p.cap),lineStyle:{color:C.violet,width:2.5},itemStyle:{color:C.violet},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(167,139,250,.2)'},{offset:1,color:'transparent'}]}},showSymbol:false,smooth:true,
+            markArea:{silent:true,data:[[{xAxis:'M3',itemStyle:{color:'rgba(0,229,255,.03)'}},{xAxis:'M4'}],[{xAxis:'M6',itemStyle:{color:'rgba(0,229,255,.03)'}},{xAxis:'M7'}],[{xAxis:'M9',itemStyle:{color:'rgba(167,139,250,.04)'}},{xAxis:'M10'}]]},
+          },
+        ]
+      });
+    }
+
+    function renderSl(){
+      const entry=parseFloat(sl.value.entry)||100;
+      const trailPct=parseFloat(sl.value.trailPct)||3;
+      const days=Array.from({length:15},(_,i)=>i+1);
+      const prices=days.map(d=>+(entry*Math.pow(1.02,d-1)).toFixed(2));
+      const fixedSl=days.map(()=>slPrice.value);
+      const trailSl=prices.map(p=>+(p*(1-trailPct/100)).toFixed(2));
+      ec('slChart',{backgroundColor:EC_BG,grid:EC_GRID,tooltip:{...EC_TOOLTIP,trigger:'axis',formatter:params=>{let s=`<div style="color:rgba(224,244,255,.5);font-size:.6rem;margin-bottom:6px">${params[0].name}</div>`;params.forEach(p=>{s+=`<div style="margin-bottom:2px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};margin-right:6px"></span>${p.seriesName}: <strong style="color:${p.color}">₹${(p.value||0).toFixed(2)}</strong></div>`});return s}},
+        legend:{data:['Stock Price','Fixed SL','Trailing SL'],textStyle:{...EC_TEXT,color:'rgba(224,244,255,.5)'},top:0,right:8},
+        xAxis:{...EC_X_AXIS,data:days.map(d=>`Day ${d}`)},
+        yAxis:{...EC_Y_AXIS,axisLabel:{...EC_TEXT,formatter:v=>`₹${v.toFixed(0)}`}},
+        dataZoom:EC_ZOOM,
+        series:[
+          {name:'Stock Price',type:'line',data:prices,lineStyle:{color:C.cyan,width:2.5},itemStyle:{color:C.cyan},symbolSize:5,smooth:true,areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(0,229,255,.1)'},{offset:1,color:'transparent'}]}}},
+          {name:'Fixed SL',type:'line',data:fixedSl,lineStyle:{color:C.red,width:2,type:'dashed'},itemStyle:{color:C.red},showSymbol:false,smooth:false},
+          {name:'Trailing SL',type:'line',data:trailSl,lineStyle:{color:C.green,width:2},itemStyle:{color:C.green},symbolSize:5,smooth:true},
+        ]
+      });
+    }
+
+    const renderers={portfolio:renderPb,position:renderPs,rr:renderRr,leverage:renderLc,brokerage:renderBrok,simulator:renderSim,strategy:renderStrat,stoploss:renderSl};
+
+    watch(tab,async()=>{await nextTick();renderers[tab.value]?.()});
+    watch(pb,async()=>{if(tab.value==='portfolio'){await nextTick();renderPb()}},{deep:true});
+    watch(ps,async()=>{if(tab.value==='position'){await nextTick();renderPs()}},{deep:true});
+    watch(rr,async()=>{if(tab.value==='rr'){await nextTick();renderRr()}},{deep:true});
+    watch(lc,async()=>{if(tab.value==='leverage'){await nextTick();renderLc()}},{deep:true});
+    watch(brok,async()=>{if(tab.value==='brokerage'){await nextTick();renderBrok()}},{deep:true});
+    watch(sim,async()=>{if(tab.value==='simulator'){await nextTick();renderSim()}},{deep:true});
+    watch(strat,async()=>{if(tab.value==='strategy'){await nextTick();renderStrat()}},{deep:true});
+    watch(sl,async()=>{if(tab.value==='stoploss'){await nextTick();renderSl()}},{deep:true});
+
+    onMounted(async()=>{await nextTick();renderPb()});
+
+    return{
+      sidebarOpen,tab,TABS,fmtINR,fmt,
+      pb,pbRows,pbReturn,
+      ps,psRisk,psSlPct,psShares,psPosVal,psMaxShares,psCapUsed,
+      rr,rrRiskPct,rrRewardPct,rrRisk,rrReward,rrRatio,rrWinNeeded,
+      lc,lcPnl,lcRet,
+      brok,brokGross,brokNet,brokTotal,brokBEP,brokCharges,
+      sim,simExp,simMonthlyExp,simFinal,simTotalReturn,
+      strat,stratPhases,stratRules,
+      sl,slPrice,slDistPct,slShares,
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
