@@ -10,5 +10,5 @@ export default defineConfig({
     }
   },
   // ⚠️ Change '/swingdesk/' to match your GitHub repo name
-  base: '/swingdesk/'
+  base: '/tradecalc/',
 })
